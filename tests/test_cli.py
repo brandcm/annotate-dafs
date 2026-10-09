@@ -446,6 +446,40 @@ def test_cli_tolerates_ancestral_allele_field_declared_with_another_number(tmp_p
     assert records[1].INFO["AA"] == ["A"]
     assert records[1].INFO["DAF"] == pytest.approx([1.0])
 
+def test_cli_annotates_sites_an_annotation_reports_as_monomorphic(tmp_path):
+    """An omitted ALT field with a zero frequency is annotated as monomorphic."""
+    input_vcf = DATA_DIR / "monomorphic.vcf"
+    output_vcf = tmp_path / "omitted_alts_output.vcf"
+
+    exit_code = main(
+        [
+            "annotate",
+            "--aa-field",
+            "AA",
+            "--vcf",
+            str(input_vcf),
+            "--af-field",
+            "CUSTOM_AF",
+            "--alts-field",
+            "CUSTOM_ALTS",
+            "--output",
+            str(output_vcf),
+        ]
+    )
+
+    assert exit_code == 0
+
+    records = read_records(output_vcf)
+
+    # the reference allele is ancestral, so nothing derived is present
+    assert records[4].INFO["DAF"] == pytest.approx([0.0])
+
+    # the reference allele is derived and fixed
+    assert records[5].INFO["DAF"] == pytest.approx([1.0])
+
+    # a frequency without alternate alleles is inconsistent, so the record is skipped
+    assert "DAF" not in records[6].INFO
+
 def test_cli_download_ancestral_grch37(tmp_path, monkeypatch):
     """Download the GRCh37 ancestral FASTA with the expected arguments."""
     calls = []

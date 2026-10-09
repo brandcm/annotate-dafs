@@ -124,9 +124,21 @@ def get_alt_alleles_and_frequencies(
 
         return alleles, frequencies
 
-    # a monomorphic record has no alternate alleles, and so no frequencies to read
-    if alts_field is None and not variant.ALT:
-        return [], []
+    # a record with no alternate allele is monomorphic for the reference allele, and
+    # so has no alternate allele frequencies to read
+    if alts_field is None:
+        if not variant.ALT:
+            return [], []
+    elif variant.INFO.get(alts_field) is None:
+        # an annotation may omit its alternate alleles where the site is monomorphic
+        # for the reference allele, reporting an allele frequency of zero instead. A
+        # missing frequency means the site was not assessed, which is not the same.
+        frequencies = parse_af_values(variant, af_field)
+
+        if frequencies and not any(frequencies):
+            return [], []
+
+        return None
 
     frequencies = parse_af_values(variant, af_field)
 
@@ -135,8 +147,6 @@ def get_alt_alleles_and_frequencies(
 
     if alts_field is None:
         alleles = [alt.value.upper() for alt in variant.ALT]
-    elif variant.INFO.get(alts_field) is None:
-        return None
     else:
         alleles = parse_alt_alleles(variant, alts_field)
 

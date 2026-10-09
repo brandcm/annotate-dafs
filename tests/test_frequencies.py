@@ -380,3 +380,29 @@ def test_calculate_allele_frequencies_invalid_allele_index():
             [[0, 2]],
             number_of_alts=1,
         )
+
+def test_omitted_alts_field_with_zero_frequency_is_monomorphic(monomorphic_records):
+    """An omitted ALT field with an allele frequency of zero means no alternate allele."""
+    variant = monomorphic_records[4]
+
+    alleles, frequencies = get_alt_alleles_and_frequencies(
+        variant,
+        samples=None,
+        af_field="CUSTOM_AF",
+        alts_field="CUSTOM_ALTS",
+    )
+
+    assert alleles == []
+    assert frequencies == []
+
+
+def test_omitted_alts_field_with_a_frequency_is_treated_as_missing(monomorphic_records):
+    """An omitted ALT field alongside a non-zero allele frequency produces no frequencies."""
+    variant = monomorphic_records[6]
+
+    assert get_alt_alleles_and_frequencies(
+        variant,
+        samples=None,
+        af_field="CUSTOM_AF",
+        alts_field="CUSTOM_ALTS",
+    ) is None
