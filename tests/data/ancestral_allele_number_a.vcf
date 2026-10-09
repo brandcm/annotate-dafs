@@ -1,0 +1,8 @@
+##fileformat=VCFv4.3
+##contig=<ID=chr22,length=50818468>
+##INFO=<ID=AA,Number=A,Type=String,Description="Ancestral allele, declared with the wrong Number">
+##INFO=<ID=AF,Number=A,Type=Float,Description="Alternate allele frequency">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	sample1
+chr22	10	.	A	G	30	PASS	AF=0.25	GT	0/1
+chr22	20	.	G	.	30	PASS	.	GT	0/0

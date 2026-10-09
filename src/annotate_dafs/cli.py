@@ -220,6 +220,7 @@ def process_variant(
     af_field: str,
     alts_field: str | None,
     samples: set[str] | None,
+    ancestral_allele_as_list: bool = False,
 ) -> None:
     """Calculate and add DAF and the ancestral allele to a single VCF variant."""
     if fasta is not None:
@@ -263,7 +264,9 @@ def process_variant(
     )
 
     if daf:
-        variant.INFO[output_aa_field] = ancestral_allele
+        variant.INFO[output_aa_field] = (
+            [ancestral_allele] if ancestral_allele_as_list else ancestral_allele
+        )
         variant.INFO[daf_field] = daf
 
 
@@ -309,6 +312,26 @@ def run_annotate(args: argparse.Namespace) -> int:
             number=".",
         )
 
+        # an input VCF may already declare the ancestral allele field with a Number
+        # other than 1, which is then left as it is and written as a single value
+        ancestral_allele_number = next(
+            (
+                str(line.mapping.get("Number"))
+                for line in reader.header.get_lines("INFO")
+                if line.mapping["ID"] == output_aa_field
+            ),
+            "1",
+        )
+        ancestral_allele_as_list = ancestral_allele_number != "1"
+
+        if ancestral_allele_as_list:
+            LOGGER.warning(
+                "INFO field %s is declared with Number=%s rather than Number=1; "
+                "the ancestral allele is written as a single value.",
+                output_aa_field,
+                ancestral_allele_number,
+            )
+
         writer = vcfpy.Writer.from_path(
             args.output,
             reader.header,
@@ -331,6 +354,7 @@ def run_annotate(args: argparse.Namespace) -> int:
                     af_field=args.af_field,
                     alts_field=args.alts_field,
                     samples=samples,
+                    ancestral_allele_as_list=ancestral_allele_as_list,
                 )
 
                 if args.daf_field in variant.INFO:

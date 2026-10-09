@@ -413,6 +413,39 @@ def test_cli_daf_header_permits_any_number_of_values(tmp_path):
     assert daf_lines[0].mapping["Type"] == "Float"
 
 
+def test_cli_tolerates_ancestral_allele_field_declared_with_another_number(tmp_path):
+    """An existing ancestral-allele INFO declaration that is not Number=1 is written to."""
+    input_vcf = DATA_DIR / "ancestral_allele_number_a.vcf"
+    ancestral_fasta = tmp_path / "ancestral.fa"
+    output_vcf = tmp_path / "ancestral_allele_number_a_output.vcf"
+
+    ancestral_fasta.write_text(">chr22\n" + "A" * 20 + "\n")
+    pysam.faidx(str(ancestral_fasta))
+
+    exit_code = main(
+        [
+            "annotate",
+            "--fasta",
+            str(ancestral_fasta),
+            "--vcf",
+            str(input_vcf),
+            "--output",
+            str(output_vcf),
+        ]
+    )
+
+    assert exit_code == 0
+
+    records = read_records(output_vcf)
+
+    # the ancestral allele is written although the input declares AA as Number=A
+    assert records[0].INFO["AA"] == ["A"]
+    assert records[0].INFO["DAF"] == pytest.approx([0.25])
+
+    # and on a record without an ALT allele
+    assert records[1].INFO["AA"] == ["A"]
+    assert records[1].INFO["DAF"] == pytest.approx([1.0])
+
 def test_cli_download_ancestral_grch37(tmp_path, monkeypatch):
     """Download the GRCh37 ancestral FASTA with the expected arguments."""
     calls = []
