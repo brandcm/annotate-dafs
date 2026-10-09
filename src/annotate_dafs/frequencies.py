@@ -85,6 +85,9 @@ def parse_af_values(
     frequencies = []
 
     for value in af_values:
+        if value is None or value == ".":
+            return None
+
         frequency = float(value)
 
         if not 0 <= frequency <= 1:
@@ -121,6 +124,10 @@ def get_alt_alleles_and_frequencies(
 
         return alleles, frequencies
 
+    # a monomorphic record has no alternate alleles, and so no frequencies to read
+    if alts_field is None and not variant.ALT:
+        return [], []
+
     frequencies = parse_af_values(variant, af_field)
 
     if frequencies is None:
@@ -128,6 +135,8 @@ def get_alt_alleles_and_frequencies(
 
     if alts_field is None:
         alleles = [alt.value.upper() for alt in variant.ALT]
+    elif variant.INFO.get(alts_field) is None:
+        return None
     else:
         alleles = parse_alt_alleles(variant, alts_field)
 
@@ -160,6 +169,11 @@ def calculate_daf(
     ancestral_allele = ancestral_allele.upper()
     reference_allele = reference_allele.upper()
     alternate_alleles = [allele.upper() for allele in alternate_alleles]
+
+    # a record without alternate alleles is monomorphic for the reference allele,
+    # which is derived when it is not the ancestral allele
+    if not alternate_alleles:
+        return [0.0] if ancestral_allele == reference_allele else [1.0]
 
     if ancestral_allele == reference_allele:
         return list(alternate_frequencies)

@@ -152,7 +152,7 @@ The corresponding INFO definitions are:
 
 ```text
 ##INFO=<ID=AA,Number=1,Type=String,Description="Ancestral allele used to calculate DAF">
-##INFO=<ID=DAF,Number=A,Type=Float,Description="Derived allele frequency">
+##INFO=<ID=DAF,Number=.,Type=Float,Description="Derived allele frequency">
 ```
 
 ## Allele frequency sources
@@ -214,6 +214,8 @@ The alleles in `CUSTOM_ALTS` and frequencies in `CUSTOM_AF` are paired by positi
 
 When samples are explicitly selected, genotype allele indices are interpreted against the VCF ALT field, so `--alts-field` is not used.
 
+A record with no value for `--af-field`, a missing value within it, or no value for `--alts-field` when that option is used, is written to the output without a DAF annotation. A record whose `--alts-field` and `--af-field` contain different numbers of values is an error.
+
 ## DAF calculation
 
 DAF is calculated by comparing the ancestral allele with the reference and alternate alleles at each variant.
@@ -222,6 +224,9 @@ DAF is calculated by comparing the ancestral allele with the reference and alter
 - When the **ancestral allele is an ALT allele**, that allele is assigned a DAF of 0, while the frequencies of the other ALT alleles are retained.
 - When the **ancestral allele does not match the REF or any ALT allele**, all ALT alleles are assigned a DAF of 1.0.
 - When the **ancestral allele is missing or unresolved**, no DAF annotation is added.
+- When the **record has no alternate allele**, it is monomorphic for the reference allele, which is reported with a DAF of 0 when it is ancestral and 1 when it is derived.
+
+The DAF INFO field is declared with `Number=.` because the number of values follows the allele frequency source: it is the number of VCF ALT alleles by default, the number of alleles in `--alts-field` when that is used, and one for a record without an alternate allele.
 
 For example, a variant with `REF=A`, `ALT=G`, and `AF=0.10` produces:
 

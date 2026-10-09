@@ -272,6 +272,147 @@ def test_cli_uses_custom_alts_field(tmp_path):
     assert records[0].INFO["DAF"] == pytest.approx([0.4])
 
 
+def test_cli_annotates_monomorphic_records(tmp_path):
+    """CLI annotates DAF for records without an ALT allele."""
+    input_vcf = DATA_DIR / "monomorphic.vcf"
+    output_vcf = tmp_path / "monomorphic_output.vcf"
+
+    exit_code = main(
+        [
+            "annotate",
+            "--aa-field",
+            "AA",
+            "--vcf",
+            str(input_vcf),
+            "--output",
+            str(output_vcf),
+        ]
+    )
+
+    assert exit_code == 0
+
+    records = read_records(output_vcf)
+
+    # The reference allele is ancestral, so no derived allele is present.
+    assert records[0].INFO["DAF"] == pytest.approx([0.0])
+
+    # The reference allele is derived and fixed in every genotype.
+    assert records[1].INFO["DAF"] == pytest.approx([1.0])
+
+    assert records[2].INFO["DAF"] == pytest.approx([0.0])
+    assert records[3].INFO["DAF"] == pytest.approx([0.25])
+
+
+def test_cli_annotates_monomorphic_records_with_custom_alts_field(tmp_path):
+    """A custom ALT field is annotated on records without an ALT allele."""
+    input_vcf = DATA_DIR / "monomorphic.vcf"
+    output_vcf = tmp_path / "monomorphic_custom_alts_output.vcf"
+
+    exit_code = main(
+        [
+            "annotate",
+            "--aa-field",
+            "AA",
+            "--vcf",
+            str(input_vcf),
+            "--af-field",
+            "CUSTOM_AF",
+            "--alts-field",
+            "CUSTOM_ALTS",
+            "--output",
+            str(output_vcf),
+        ]
+    )
+
+    assert exit_code == 0
+
+    records = read_records(output_vcf)
+
+    # The record has no custom allele frequency, so it is not annotated.
+    assert "DAF" not in records[0].INFO
+
+    # The custom ALT field is annotated although the record has no ALT allele.
+    assert records[2].INFO["DAF"] == pytest.approx([0.4])
+
+    # The custom ALT field holds more alleles than the ALT column.
+    assert records[3].INFO["DAF"] == pytest.approx([0.1, 0.2])
+
+
+def test_cli_annotates_monomorphic_records_from_fasta(tmp_path):
+    """CLI annotates DAF for records without an ALT allele using an ancestral FASTA."""
+    input_vcf = tmp_path / "monomorphic_fasta_input.vcf"
+    ancestral_fasta = tmp_path / "ancestral.fa"
+    output_vcf = tmp_path / "monomorphic_fasta_output.vcf"
+
+    input_vcf.write_text(
+        "##fileformat=VCFv4.3\n"
+        "##contig=<ID=chr22,length=20>\n"
+        '##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles">\n'
+        '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n'
+        "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tsample1\n"
+        "chr22\t10\t.\tA\t.\t30\tPASS\tAN=2\tGT\t0/0\n"
+        "chr22\t20\t.\tG\t.\t30\tPASS\tAN=2\tGT\t0/0\n"
+    )
+
+    ancestral_fasta.write_text(">chr22\n" + "A" * 20 + "\n")
+    pysam.faidx(str(ancestral_fasta))
+
+    exit_code = main(
+        [
+            "annotate",
+            "--fasta",
+            str(ancestral_fasta),
+            "--vcf",
+            str(input_vcf),
+            "--output",
+            str(output_vcf),
+        ]
+    )
+
+    assert exit_code == 0
+
+    records = read_records(output_vcf)
+
+    # The ancestral allele matches REF, so the reference allele is not derived.
+    assert records[0].INFO["AA"] == "A"
+    assert records[0].INFO["DAF"] == pytest.approx([0.0])
+
+    # The ancestral allele differs from REF, so the reference allele is derived.
+    assert records[1].INFO["AA"] == "A"
+    assert records[1].INFO["DAF"] == pytest.approx([1.0])
+
+def test_cli_daf_header_permits_any_number_of_values(tmp_path):
+    """The DAF INFO definition permits a variable number of values."""
+    input_vcf = DATA_DIR / "cli_input.vcf"
+    output_vcf = tmp_path / "daf_header_output.vcf"
+
+    exit_code = main(
+        [
+            "annotate",
+            "--aa-field",
+            "AA",
+            "--vcf",
+            str(input_vcf),
+            "--output",
+            str(output_vcf),
+        ]
+    )
+
+    assert exit_code == 0
+
+    reader = vcfpy.Reader.from_path(output_vcf)
+
+    daf_lines = [
+        line
+        for line in reader.header.get_lines("INFO")
+        if line.mapping["ID"] == "DAF"
+    ]
+
+    assert len(daf_lines) == 1
+    assert daf_lines[0].mapping["Number"] == "."
+    assert daf_lines[0].mapping["Type"] == "Float"
+
+
 def test_cli_download_ancestral_grch37(tmp_path, monkeypatch):
     """Download the GRCh37 ancestral FASTA with the expected arguments."""
     calls = []

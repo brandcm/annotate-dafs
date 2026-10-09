@@ -262,7 +262,7 @@ def process_variant(
         alternate_frequencies=alternate_frequencies,
     )
 
-    if daf is not None:
+    if daf:
         variant.INFO[output_aa_field] = ancestral_allele
         variant.INFO[daf_field] = daf
 
@@ -300,10 +300,13 @@ def run_annotate(args: argparse.Namespace) -> int:
             field_type="String",
         )
 
+        # the number of DAF values follows the allele frequency source, which
+        # for --alts-field and for monomorphic records is not the ALT count
         add_info_field(
             header=reader.header,
             field_id=args.daf_field,
             description=args.daf_field_description,
+            number=".",
         )
 
         writer = vcfpy.Writer.from_path(

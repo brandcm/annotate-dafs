@@ -1,0 +1,14 @@
+##fileformat=VCFv4.3
+##contig=<ID=chr22,length=50818468>
+##INFO=<ID=AA,Number=1,Type=String,Description="Ancestral allele">
+##INFO=<ID=AC,Number=A,Type=Integer,Description="Total number of alternate alleles in called genotypes">
+##INFO=<ID=AF,Number=A,Type=Float,Description="Estimated allele frequency in the range (0,1)">
+##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles in called genotypes">
+##INFO=<ID=CUSTOM_AF,Number=.,Type=Float,Description="Custom alternate allele frequency">
+##INFO=<ID=CUSTOM_ALTS,Number=.,Type=String,Description="Custom alternate alleles">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	sample1	sample2
+chr22	10	.	A	.	30	PASS	AA=A;AN=4	GT	0/0	0/0
+chr22	20	.	G	.	30	PASS	AA=A;AN=4	GT	0/0	0/0
+chr22	30	.	A	.	30	PASS	AA=A;AN=4;CUSTOM_AF=0.4;CUSTOM_ALTS=T	GT	0/0	0/0
+chr22	40	.	A	G	30	PASS	AA=A;AC=1;AF=0.25;AN=4;CUSTOM_AF=0.1,0.2;CUSTOM_ALTS=G,T	GT	0/0	0/1

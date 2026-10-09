@@ -152,6 +152,7 @@ def test_selected_samples_override_info_af(genotype_records, af_records):
     assert alleles == ["G"]
     assert frequencies == pytest.approx([0.5])
 
+
 def test_calculate_daf_ancestral_is_reference():
     """ALT frequencies are derived frequencies when REF is ancestral."""
     daf = calculate_daf(
@@ -242,3 +243,140 @@ def test_custom_alts_field_is_used_with_info_af(af_records):
 
     assert alleles == ["T"]
     assert frequencies == pytest.approx([0.25])
+
+@pytest.fixture
+def monomorphic_records() -> list[vcfpy.Record]:
+    """Records from the monomorphic test VCF."""
+    return read_records("monomorphic.vcf")
+
+
+def test_calculate_daf_monomorphic_ancestral_is_reference():
+    """A monomorphic reference allele that is ancestral has zero derived frequency."""
+    daf = calculate_daf(
+        ancestral_allele="A",
+        reference_allele="A",
+        alternate_alleles=[],
+        alternate_frequencies=[],
+    )
+
+    assert daf == pytest.approx([0.0])
+
+
+def test_calculate_daf_monomorphic_ancestral_is_not_reference():
+    """A monomorphic reference allele that is derived has a derived frequency of one."""
+    daf = calculate_daf(
+        ancestral_allele="G",
+        reference_allele="A",
+        alternate_alleles=[],
+        alternate_frequencies=[],
+    )
+
+    assert daf == pytest.approx([1.0])
+
+
+def test_monomorphic_record_has_no_alleles_or_frequencies(monomorphic_records):
+    """A record without an ALT allele yields empty alleles and frequencies."""
+    variant = monomorphic_records[0]
+
+    alleles, frequencies = get_alt_alleles_and_frequencies(
+        variant,
+        samples=None,
+        af_field="AF",
+    )
+
+    assert alleles == []
+    assert frequencies == []
+
+
+def test_monomorphic_record_uses_custom_alts_field(monomorphic_records):
+    """A custom ALT field is used even when the record has no ALT allele."""
+    variant = monomorphic_records[2]
+
+    alleles, frequencies = get_alt_alleles_and_frequencies(
+        variant,
+        samples=None,
+        af_field="CUSTOM_AF",
+        alts_field="CUSTOM_ALTS",
+    )
+
+    assert alleles == ["T"]
+    assert frequencies == pytest.approx([0.4])
+
+
+def test_missing_allele_frequency_is_treated_as_missing(af_records):
+    """A missing allele frequency value produces no frequencies."""
+    variant = af_records[0]
+
+    variant.INFO["AF"] = [None]
+
+    assert get_alt_alleles_and_frequencies(
+        variant,
+        samples=None,
+        af_field="AF",
+    ) is None
+
+
+def test_missing_alts_field_is_treated_as_missing(af_records):
+    """A record without the requested ALT field produces no frequencies."""
+    variant = af_records[0]
+
+    variant.INFO["CUSTOM_AF"] = [0.25]
+
+    assert get_alt_alleles_and_frequencies(
+        variant,
+        samples=None,
+        af_field="CUSTOM_AF",
+        alts_field="CUSTOM_ALTS",
+    ) is None
+
+
+def test_allele_frequency_out_of_range(af_records):
+    """An allele frequency outside [0, 1] raises an error."""
+    variant = af_records[0]
+
+    variant.INFO["AF"] = [1.5]
+
+    with pytest.raises(ValueError, match="Invalid allele frequency"):
+        get_alt_alleles_and_frequencies(
+            variant,
+            samples=None,
+            af_field="AF",
+        )
+
+
+def test_allele_and_frequency_length_mismatch(af_records):
+    """A custom ALT field of a different length to its AF field raises an error."""
+    variant = af_records[0]
+
+    variant.INFO["CUSTOM_AF"] = [0.25]
+    variant.INFO["CUSTOM_ALTS"] = ["T", "C"]
+
+    with pytest.raises(
+        ValueError,
+        match="does not match",
+    ):
+        get_alt_alleles_and_frequencies(
+            variant,
+            samples=None,
+            af_field="CUSTOM_AF",
+            alts_field="CUSTOM_ALTS",
+        )
+
+
+def test_calculate_allele_frequencies_all_missing():
+    """All-missing genotypes produce no allele frequencies."""
+    frequencies = calculate_allele_frequencies(
+        [[None, None], [None, None]],
+        number_of_alts=1,
+    )
+
+    assert frequencies is None
+
+
+def test_calculate_allele_frequencies_invalid_allele_index():
+    """A genotype allele index beyond the ALT count raises an error."""
+    with pytest.raises(ValueError, match="invalid allele index"):
+        calculate_allele_frequencies(
+            [[0, 2]],
+            number_of_alts=1,
+        )
